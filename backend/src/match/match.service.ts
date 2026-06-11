@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, In } from 'typeorm';
 import { MatchRequest } from './entities/match-request.entity';
 import { User } from '../auth/entities/user.entity';
 import { Booking } from '../bookings/entities/booking.entity';
@@ -67,7 +67,7 @@ export class MatchService {
     const userIds = filtered.map((c) => c.user_id);
     if (userIds.length === 0) return [];
 
-    const users = await this.userRepo.findByIds(userIds);
+    const users = await this.userRepo.findBy({ id: In(userIds) });
     const userMap = new Map(users.map((u) => [u.id, u]));
 
     return filtered.map((c) => ({

@@ -6,14 +6,11 @@ export class Table {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'venue_id' })
+  @Column({ type: 'int', name: 'venue_id' })
   venue_id: number;
 
   @Column()
   name: string;
-
-  @Column({ default: 'available' })
-  status: string;
 
   @ManyToOne(() => Venue, (venue) => venue.tables)
   @JoinColumn({ name: 'venue_id' })

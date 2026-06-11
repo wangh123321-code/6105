@@ -20,7 +20,7 @@ export class User {
   @Column({ type: 'enum', enum: ['beginner', 'intermediate', 'advanced'], default: 'beginner' })
   skill_level: 'beginner' | 'intermediate' | 'advanced';
 
-  @Column({ default: 100 })
+  @Column({ type: 'tinyint', default: 100 })
   credit_score: number;
 
   @Column({ type: 'datetime', nullable: true })

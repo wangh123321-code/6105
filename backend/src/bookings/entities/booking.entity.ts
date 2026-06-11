@@ -6,19 +6,19 @@ export class Booking {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'user_id' })
+  @Column({ type: 'int', name: 'user_id' })
   user_id: number;
 
-  @Column({ name: 'table_id' })
+  @Column({ type: 'int', name: 'table_id' })
   table_id: number;
 
-  @Column({ name: 'venue_id' })
+  @Column({ type: 'int', name: 'venue_id' })
   venue_id: number;
 
   @Column({ type: 'date' })
   date: string;
 
-  @Column({ name: 'hour_slot' })
+  @Column({ type: 'tinyint', name: 'hour_slot' })
   hour_slot: number;
 
   @Column({ type: 'enum', enum: ['pending_payment', 'paid', 'cancelled', 'expired'], default: 'pending_payment' })
@@ -27,7 +27,7 @@ export class Booking {
   @Column({ type: 'enum', enum: ['solo', 'match'], default: 'solo', name: 'booking_type' })
   booking_type: 'solo' | 'match';
 
-  @Column({ name: 'match_request_id', nullable: true })
+  @Column({ type: 'int', name: 'match_request_id', nullable: true })
   match_request_id: number | null;
 
   @Column({ type: 'datetime', nullable: true, name: 'paid_at' })

@@ -12,7 +12,7 @@ export class Venue {
   @Column()
   address: string;
 
-  @Column({ nullable: true })
+  @Column()
   phone: string;
 
   @Column({ type: 'time' })
@@ -20,9 +20,6 @@ export class Venue {
 
   @Column({ type: 'time' })
   close_time: string;
-
-  @Column({ nullable: true })
-  description: string;
 
   @CreateDateColumn()
   created_at: Date;
