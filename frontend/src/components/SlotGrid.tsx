@@ -1,4 +1,5 @@
 import type { TableSlotRow, TimeSlot } from '../types'
+import RatingStars from './RatingStars'
 
 interface SlotGridProps {
   rows: TableSlotRow[]
@@ -25,8 +26,12 @@ export default function SlotGrid({ rows, openHour, closeHour, onSlotClick }: Slo
               时段
             </th>
             {rows.map((r) => (
-              <th key={r.table_id} className="border border-gray-300 bg-gray-100 px-3 py-2 text-sm font-medium text-gray-600 min-w-[100px]">
-                {r.table_name}
+              <th key={r.table_id} className="border border-gray-300 bg-gray-100 px-3 py-2 text-sm font-medium text-gray-600 min-w-[120px]">
+                <div>{r.table_name}</div>
+                <div className="flex items-center justify-center gap-1 mt-1">
+                  <RatingStars rating={r.avg_rating} size="sm" />
+                  <span className="text-xs text-gray-500">{r.avg_rating > 0 ? r.avg_rating.toFixed(1) : '暂无'}</span>
+                </div>
               </th>
             ))}
           </tr>

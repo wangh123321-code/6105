@@ -5,9 +5,10 @@ import { VenuesService } from './venues.service';
 import { Venue } from './entities/venue.entity';
 import { Table } from './entities/table.entity';
 import { Booking } from '../bookings/entities/booking.entity';
+import { ReviewsModule } from '../reviews/reviews.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Venue, Table, Booking])],
+  imports: [TypeOrmModule.forFeature([Venue, Table, Booking]), ReviewsModule],
   controllers: [VenuesController],
   providers: [VenuesService],
   exports: [VenuesService],

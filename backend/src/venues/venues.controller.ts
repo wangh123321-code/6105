@@ -20,6 +20,21 @@ export class VenuesController {
     return this.venuesService.findTables(venueId);
   }
 
+  @Get(':venueId/tables-with-reviews')
+  findTablesWithReviews(@Param('venueId') venueId: number, @Query('limit') limit?: number) {
+    return this.venuesService.findTablesWithReviews(venueId, limit);
+  }
+
+  @Get(':venueId/tables/:tableId/reviews')
+  findTableReviews(
+    @Param('venueId') venueId: number,
+    @Param('tableId') tableId: number,
+    @Query('page') page?: number,
+    @Query('pageSize') pageSize?: number,
+  ) {
+    return this.venuesService.findTableReviews(venueId, tableId, page, pageSize);
+  }
+
   @Get(':venueId/slots')
   getTimeSlotGrid(@Param('venueId') venueId: number, @Query('date') date: string) {
     return this.venuesService.getTimeSlotGrid(venueId, date);

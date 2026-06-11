@@ -1,8 +1,12 @@
 import type { Booking } from '../types'
+import RatingStars from './RatingStars'
 
 interface BookingCardProps {
   booking: Booking
   onCancel?: (id: number) => void
+  onReview?: (booking: Booking) => void
+  review?: { rating: number; content?: string } | null
+  canReview?: boolean
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -12,7 +16,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   expired: { label: '已过期', color: 'bg-red-100 text-red-700' },
 }
 
-export default function BookingCard({ booking, onCancel }: BookingCardProps) {
+export default function BookingCard({ booking, onCancel, onReview, review, canReview }: BookingCardProps) {
   const statusInfo = STATUS_LABELS[booking.status] || { label: booking.status, color: 'bg-gray-100 text-gray-500' }
 
   return (
@@ -26,6 +30,12 @@ export default function BookingCard({ booking, onCancel }: BookingCardProps) {
           <p className="text-gray-400 text-xs mt-1">
             创建时间：{new Date(booking.created_at).toLocaleString()}
           </p>
+          {review && (
+            <div className="mt-2 flex items-center gap-2">
+              <RatingStars rating={review.rating} size="sm" />
+              <span className="text-xs text-gray-500">已评价</span>
+            </div>
+          )}
         </div>
         <span className={`${statusInfo.color} px-3 py-1 rounded-full text-xs font-medium`}>
           {statusInfo.label}
@@ -47,6 +57,16 @@ export default function BookingCard({ booking, onCancel }: BookingCardProps) {
           <span className="text-gray-400 text-xs">
             开课前2小时免费取消，2小时内取消收取50%费用
           </span>
+        </div>
+      )}
+      {canReview && !review && onReview && (
+        <div className="mt-3">
+          <button
+            onClick={() => onReview(booking)}
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+          >
+            去评价
+          </button>
         </div>
       )}
     </div>

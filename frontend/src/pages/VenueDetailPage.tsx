@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
-import { getVenue, getVenueSlots } from '../api/venues'
+import { getVenue, getVenueSlots, getVenueTablesWithReviews } from '../api/venues'
 import { createBooking, payBooking } from '../api/bookings'
 import SlotGrid from '../components/SlotGrid'
-import type { Venue, TableSlotRow } from '../types'
+import RatingStars from '../components/RatingStars'
+import type { Venue, TableSlotRow, TableWithReviews } from '../types'
 
 export default function VenueDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [venue, setVenue] = useState<Venue | null>(null)
   const [rows, setRows] = useState<TableSlotRow[]>([])
+  const [tableReviews, setTableReviews] = useState<TableWithReviews[]>([])
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [loading, setLoading] = useState(true)
   const [confirmModal, setConfirmModal] = useState<{ tableId: number; tableName: string; hour: number } | null>(null)
@@ -40,6 +42,17 @@ export default function VenueDetailPage() {
       }
     }
     fetchVenue()
+  }, [id])
+
+  useEffect(() => {
+    const fetchTableReviews = async () => {
+      if (!id) return
+      try {
+        const data = await getVenueTablesWithReviews(Number(id), 3)
+        setTableReviews(data)
+      } catch {}
+    }
+    fetchTableReviews()
   }, [id])
 
   useEffect(() => {
@@ -128,6 +141,11 @@ export default function VenueDetailPage() {
     <div>
       <div className="bg-white rounded-xl shadow p-6 mb-6">
         <h1 className="text-2xl font-bold text-gray-800">{venue.name}</h1>
+        <div className="flex items-center gap-3 mt-2">
+          <RatingStars rating={venue.avg_rating} size="md" />
+          <span className="text-gray-700 font-medium">{venue.avg_rating.toFixed(1)}</span>
+          <span className="text-gray-400 text-sm">({venue.review_count} 条评价)</span>
+        </div>
         <p className="text-gray-500 mt-2">📍 {venue.address}</p>
         <p className="text-gray-500">📞 {venue.phone}</p>
         <p className="text-gray-500">🕐 {venue.open_time.slice(0,5)} - {venue.close_time.slice(0,5)}</p>
@@ -183,6 +201,52 @@ export default function VenueDetailPage() {
           closeHour={closeHour}
           onSlotClick={handleSlotClick}
         />
+      </div>
+
+      <div className="bg-white rounded-xl shadow p-6 mt-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4">球台评价</h2>
+        {tableReviews.length === 0 ? (
+          <div className="text-center py-8 text-gray-400">暂无评价</div>
+        ) : (
+          <div className="space-y-4">
+            {tableReviews.map((table) => (
+              <div key={table.table_id} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-800">{table.table_name}</span>
+                    <RatingStars rating={table.avg_rating} size="sm" />
+                    <span className="text-sm text-gray-500">{table.avg_rating.toFixed(1)}</span>
+                    <span className="text-xs text-gray-400">({table.review_count}条)</span>
+                  </div>
+                </div>
+                {table.latest_reviews && table.latest_reviews.length > 0 ? (
+                  <div className="space-y-2 pl-2">
+                    {table.latest_reviews.map((review) => (
+                      <div key={review.id} className="bg-gray-50 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-700">
+                              {review.user?.nickname || '匿名用户'}
+                            </span>
+                            <RatingStars rating={review.rating} size="sm" />
+                          </div>
+                          <span className="text-xs text-gray-400">
+                            {new Date(review.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {review.content && (
+                          <p className="text-sm text-gray-600">{review.content}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 pl-2">暂无评价</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {confirmModal && (

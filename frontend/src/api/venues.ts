@@ -1,5 +1,5 @@
 import client from './client'
-import type { Venue, TableInfo, TableSlotRow } from '../types'
+import type { Venue, TableInfo, TableSlotRow, TableWithReviews } from '../types'
 
 export const getVenues = async (): Promise<Venue[]> => {
   const res = await client.get<Venue[]>('/venues')
@@ -13,6 +13,11 @@ export const getVenue = async (id: number): Promise<Venue> => {
 
 export const getVenueTables = async (venueId: number): Promise<TableInfo[]> => {
   const res = await client.get<TableInfo[]>(`/venues/${venueId}/tables`)
+  return res.data
+}
+
+export const getVenueTablesWithReviews = async (venueId: number, limit = 3): Promise<TableWithReviews[]> => {
+  const res = await client.get<TableWithReviews[]>(`/venues/${venueId}/tables-with-reviews`, { params: { limit } })
   return res.data
 }
 

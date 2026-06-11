@@ -31,6 +31,8 @@ CREATE TABLE venues (
   phone VARCHAR(20) NOT NULL,
   open_time TIME NOT NULL DEFAULT '08:00:00',
   close_time TIME NOT NULL DEFAULT '22:00:00',
+  avg_rating DECIMAL(3,2) NOT NULL DEFAULT 0.00,
+  review_count INT UNSIGNED NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -39,6 +41,8 @@ CREATE TABLE tables (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   venue_id INT UNSIGNED NOT NULL,
   name VARCHAR(50) NOT NULL,
+  avg_rating DECIMAL(3,2) NOT NULL DEFAULT 0.00,
+  review_count INT UNSIGNED NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_tables_venue (venue_id),
@@ -86,6 +90,25 @@ CREATE TABLE match_requests (
   CONSTRAINT fk_match_venue FOREIGN KEY (venue_id) REFERENCES venues(id),
   CONSTRAINT fk_match_matched_user FOREIGN KEY (matched_user_id) REFERENCES users(id),
   CONSTRAINT fk_match_booking FOREIGN KEY (matched_booking_id) REFERENCES bookings(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE reviews (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  booking_id INT UNSIGNED NOT NULL,
+  user_id INT UNSIGNED NOT NULL,
+  table_id INT UNSIGNED NOT NULL,
+  venue_id INT UNSIGNED NOT NULL,
+  rating TINYINT UNSIGNED NOT NULL,
+  content VARCHAR(500) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE INDEX uk_reviews_booking (booking_id),
+  INDEX idx_reviews_table (table_id, created_at DESC),
+  INDEX idx_reviews_user (user_id, created_at DESC),
+  CONSTRAINT fk_reviews_booking FOREIGN KEY (booking_id) REFERENCES bookings(id),
+  CONSTRAINT fk_reviews_user FOREIGN KEY (user_id) REFERENCES users(id),
+  CONSTRAINT fk_reviews_table FOREIGN KEY (table_id) REFERENCES tables(id),
+  CONSTRAINT fk_reviews_venue FOREIGN KEY (venue_id) REFERENCES venues(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE credit_logs (

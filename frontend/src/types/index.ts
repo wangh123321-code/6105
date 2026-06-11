@@ -36,12 +36,16 @@ export interface Venue {
   close_time: string
   table_count: number
   description: string
+  avg_rating: number
+  review_count: number
 }
 
 export interface TableInfo {
   id: number
   venue_id: number
   name: string
+  avg_rating: number
+  review_count: number
 }
 
 export type SlotStatus = 'available' | 'booked' | 'mine'
@@ -56,7 +60,17 @@ export type Slot = TimeSlot
 export interface TableSlotRow {
   table_id: number
   table_name: string
+  avg_rating: number
+  review_count: number
   slots: TimeSlot[]
+}
+
+export interface TableWithReviews {
+  table_id: number
+  table_name: string
+  avg_rating: number
+  review_count: number
+  latest_reviews: Review[]
 }
 
 export interface Booking {
@@ -113,4 +127,33 @@ export interface MatchRecommendation {
   user_id: number
   nickname: string
   skill_level: SkillLevel
+}
+
+export interface Review {
+  id: number
+  booking_id: number
+  user_id: number
+  table_id: number
+  venue_id: number
+  rating: number
+  content: string | null
+  created_at: string
+  updated_at: string
+  user?: {
+    id: number
+    nickname: string
+  }
+}
+
+export interface ReviewListResponse {
+  list: Review[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export interface CreateReviewRequest {
+  booking_id: number
+  rating: number
+  content?: string
 }

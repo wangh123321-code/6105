@@ -9,6 +9,7 @@ import { MatchModule } from './match/match.module';
 import { CreditModule } from './credit/credit.module';
 import { SchedulingModule } from './scheduling/scheduling.module';
 import { SeederModule } from './seeder/seeder.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { SeederModule } from './seeder/seeder.module';
     CreditModule,
     SchedulingModule,
     SeederModule,
+    ReviewsModule,
   ],
 })
 export class AppModule {}

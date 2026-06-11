@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { getMyBookings, cancelBooking } from '../api/bookings'
-import type { Booking } from '../types'
+import { createReview, getReviewByBooking } from '../api/reviews'
+import type { Booking, Review } from '../types'
+import ReviewModal from '../components/ReviewModal'
+import RatingStars from '../components/RatingStars'
 
 const STATUS_MAP: Record<Booking['status'], { label: string; color: string }> = {
   pending_payment: { label: '待支付', color: 'bg-yellow-100 text-yellow-700' },
@@ -13,6 +16,8 @@ export default function MyBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [reviewModal, setReviewModal] = useState<Booking | null>(null)
+  const [bookingReviews, setBookingReviews] = useState<Record<number, Review | null>>({})
 
   const fetchBookings = async () => {
     try {
@@ -37,6 +42,55 @@ export default function MyBookingsPage() {
   }
 
   const formatHour = (h: number) => `${String(h).padStart(2, '0')}:00-${String(h + 1).padStart(2, '0')}:00`
+
+  const canReview = (booking: Booking): boolean => {
+    if (booking.status !== 'paid') return false
+    const slotEnd = new Date(`${booking.date}T${String(booking.hour_slot + 1).padStart(2, '0')}:00:00`)
+    const now = new Date()
+    if (now < slotEnd) return false
+    const bookingDate = new Date(booking.date)
+    const sevenDaysLater = new Date(bookingDate)
+    sevenDaysLater.setDate(bookingDate.getDate() + 7)
+    sevenDaysLater.setHours(23, 59, 59, 999)
+    if (now > sevenDaysLater) return false
+    return true
+  }
+
+  const isReviewed = (bookingId: number): boolean => {
+    return bookingReviews[bookingId] !== undefined && bookingReviews[bookingId] !== null
+  }
+
+  const loadBookingReview = async (bookingId: number) => {
+    if (bookingReviews[bookingId] !== undefined) return
+    try {
+      const review = await getReviewByBooking(bookingId)
+      setBookingReviews((prev) => ({ ...prev, [bookingId]: review }))
+    } catch {}
+  }
+
+  useEffect(() => {
+    bookings.forEach((b) => {
+      if (b.status === 'paid') {
+        loadBookingReview(b.id)
+      }
+    })
+  }, [bookings])
+
+  const handleReviewClick = (booking: Booking) => {
+    setReviewModal(booking)
+  }
+
+  const handleSubmitReview = async (rating: number, content: string) => {
+    if (!reviewModal) return
+    await createReview({
+      booking_id: reviewModal.id,
+      rating,
+      content,
+    })
+    setMessage({ type: 'success', text: '评价提交成功！' })
+    setReviewModal(null)
+    fetchBookings()
+  }
 
   if (loading) return <div className="text-center py-20 text-gray-500">加载中...</div>
 
@@ -66,17 +120,42 @@ export default function MyBookingsPage() {
                   </div>
                   <p className="text-sm text-gray-500">{b.date} {formatHour(b.hour_slot)}</p>
                   <p className="text-xs text-gray-400">创建于 {new Date(b.created_at).toLocaleString()}</p>
+                  {isReviewed(b.id) && bookingReviews[b.id] && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <RatingStars rating={bookingReviews[b.id]!.rating} size="sm" />
+                      <span className="text-xs text-gray-500">已评价</span>
+                    </div>
+                  )}
                 </div>
-                {(b.status === 'paid' || b.status === 'pending_payment') && (
-                  <button onClick={() => handleCancel(b.id)}
-                    className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 text-sm transition">
-                    取消预约
-                  </button>
-                )}
+                <div className="flex flex-col items-end gap-2">
+                  {(b.status === 'paid' || b.status === 'pending_payment') && (
+                    <button onClick={() => handleCancel(b.id)}
+                      className="px-3 py-1.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 text-sm transition">
+                      取消预约
+                    </button>
+                  )}
+                  {canReview(b) && !isReviewed(b.id) && (
+                    <button onClick={() => handleReviewClick(b)}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">
+                      评价
+                    </button>
+                  )}
+                </div>
               </div>
             )
           })}
         </div>
+      )}
+
+      {reviewModal && (
+        <ReviewModal
+          bookingId={reviewModal.id}
+          tableName={`球台#${reviewModal.table_id}`}
+          date={reviewModal.date}
+          timeSlot={formatHour(reviewModal.hour_slot)}
+          onClose={() => setReviewModal(null)}
+          onSubmit={handleSubmitReview}
+        />
       )}
     </div>
   )

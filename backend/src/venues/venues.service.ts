@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Venue } from './entities/venue.entity';
 import { Table } from './entities/table.entity';
 import { Booking } from '../bookings/entities/booking.entity';
+import { ReviewsService } from '../reviews/reviews.service';
 
 @Injectable()
 export class VenuesService {
@@ -14,6 +15,7 @@ export class VenuesService {
     private readonly tableRepo: Repository<Table>,
     @InjectRepository(Booking)
     private readonly bookingRepo: Repository<Booking>,
+    private readonly reviewsService: ReviewsService,
   ) {}
 
   async findAll() {
@@ -34,6 +36,18 @@ export class VenuesService {
       throw new NotFoundException('球馆不存在');
     }
     return this.tableRepo.find({ where: { venue_id: venueId } });
+  }
+
+  async findTableReviews(venueId: number, tableId: number, page = 1, pageSize = 10) {
+    const venue = await this.venueRepo.findOne({ where: { id: venueId } });
+    if (!venue) {
+      throw new NotFoundException('球馆不存在');
+    }
+    const table = await this.tableRepo.findOne({ where: { id: tableId, venue_id: venueId } });
+    if (!table) {
+      throw new NotFoundException('球台不存在');
+    }
+    return this.reviewsService.findByTable(tableId, page, pageSize);
   }
 
   async getTimeSlotGrid(venueId: number, date: string) {
@@ -71,10 +85,38 @@ export class VenuesService {
     return tables.map((table) => ({
       table_id: table.id,
       table_name: table.name,
+      avg_rating: Number(table.avg_rating),
+      review_count: table.review_count,
       slots: hours.map((hour) => ({
         hour: hour,
         status: bookingMap.has(`${table.id}_${hour}`) ? 'occupied' : 'available',
       })),
     }));
+  }
+
+  async findTablesWithReviews(venueId: number, limit = 3) {
+    const venue = await this.venueRepo.findOne({ where: { id: venueId } });
+    if (!venue) {
+      throw new NotFoundException('球馆不存在');
+    }
+    const tables = await this.tableRepo.find({ where: { venue_id: venueId } });
+    const result: Array<{
+      table_id: number;
+      table_name: string;
+      avg_rating: number;
+      review_count: number;
+      latest_reviews: any[];
+    }> = [];
+    for (const table of tables) {
+      const latestReviews = await this.reviewsService.findLatestByTable(table.id, limit);
+      result.push({
+        table_id: table.id,
+        table_name: table.name,
+        avg_rating: Number(table.avg_rating),
+        review_count: table.review_count,
+        latest_reviews: latestReviews,
+      });
+    }
+    return result;
   }
 }
