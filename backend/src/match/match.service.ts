@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
 import { MatchRequest } from './entities/match-request.entity';
@@ -20,6 +20,7 @@ export class MatchService {
     private readonly bookingRepo: Repository<Booking>,
     @InjectRepository(Table)
     private readonly tableRepo: Repository<Table>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(userId: number, dto: CreateMatchRequestDto) {
@@ -79,67 +80,95 @@ export class MatchService {
   }
 
   async confirmMatch(userId: number, matchRequestId: number) {
-    const targetRequest = await this.matchRequestRepo.findOne({ where: { id: matchRequestId, status: 'open' } });
-    if (!targetRequest) {
-      throw new NotFoundException('找球友请求不存在或已匹配');
-    }
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    if (targetRequest.user_id === userId) {
-      throw new BadRequestException('不能匹配自己的请求');
-    }
+    try {
+      const targetRequest = await queryRunner.manager.findOne(MatchRequest, {
+        where: { id: matchRequestId, status: 'open' },
+      });
+      if (!targetRequest) {
+        throw new NotFoundException('找球友请求不存在或已匹配');
+      }
 
-    const tables = await this.tableRepo.find({ where: { venue_id: targetRequest.venue_id } });
-    if (tables.length === 0) {
-      throw new BadRequestException('该球馆没有可用球台');
-    }
+      if (targetRequest.user_id === userId) {
+        throw new BadRequestException('不能匹配自己的请求');
+      }
 
-    const occupiedBookings = await this.bookingRepo.find({
-      where: {
+      const tables = await queryRunner.manager.find(Table, {
+        where: { venue_id: targetRequest.venue_id },
+      });
+      if (tables.length === 0) {
+        throw new BadRequestException('该球馆没有可用球台');
+      }
+
+      const tableIds = tables.map((t) => t.id);
+      const occupiedBookings = await queryRunner.manager.find(Booking, {
+        where: {
+          date: targetRequest.preferred_date,
+          hour_slot: targetRequest.hour_slot,
+          status: 'paid',
+        },
+      });
+      const pendingBookings = await queryRunner.manager.find(Booking, {
+        where: {
+          date: targetRequest.preferred_date,
+          hour_slot: targetRequest.hour_slot,
+          status: 'pending_payment',
+        },
+      });
+      const allOccupied = [...occupiedBookings, ...pendingBookings].filter((b) =>
+        tableIds.includes(b.table_id),
+      );
+      const occupiedTableIds = new Set(allOccupied.map((b) => b.table_id));
+      const availableTable = tables.find((t) => !occupiedTableIds.has(t.id));
+
+      if (!availableTable) {
+        throw new ConflictException('该时段没有可用球台');
+      }
+
+      const booking1 = queryRunner.manager.create(Booking, {
+        user_id: targetRequest.user_id,
+        table_id: availableTable.id,
+        venue_id: targetRequest.venue_id,
         date: targetRequest.preferred_date,
         hour_slot: targetRequest.hour_slot,
         status: 'paid',
-      },
-    });
-    const occupiedTableIds = new Set(occupiedBookings.map((b) => b.table_id));
-    const availableTable = tables.find((t) => !occupiedTableIds.has(t.id));
+        booking_type: 'match',
+        match_request_id: targetRequest.id,
+        paid_at: new Date(),
+      });
+      const booking2 = queryRunner.manager.create(Booking, {
+        user_id: userId,
+        table_id: availableTable.id,
+        venue_id: targetRequest.venue_id,
+        date: targetRequest.preferred_date,
+        hour_slot: targetRequest.hour_slot,
+        status: 'paid',
+        booking_type: 'match',
+        match_request_id: targetRequest.id,
+        paid_at: new Date(),
+      });
+      const savedBookings = await queryRunner.manager.save([booking1, booking2]);
 
-    if (!availableTable) {
-      throw new BadRequestException('该时段没有可用球台');
+      targetRequest.status = 'matched';
+      targetRequest.matched_user_id = userId;
+      targetRequest.matched_booking_id = savedBookings[0].id;
+      await queryRunner.manager.save(targetRequest);
+
+      await queryRunner.commitTransaction();
+
+      return {
+        match_request: targetRequest,
+        bookings: savedBookings,
+      };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
     }
-
-    const booking1 = this.bookingRepo.create({
-      user_id: targetRequest.user_id,
-      table_id: availableTable.id,
-      venue_id: targetRequest.venue_id,
-      date: targetRequest.preferred_date,
-      hour_slot: targetRequest.hour_slot,
-      status: 'paid',
-      booking_type: 'match',
-      match_request_id: targetRequest.id,
-      paid_at: new Date(),
-    });
-    const booking2 = this.bookingRepo.create({
-      user_id: userId,
-      table_id: availableTable.id,
-      venue_id: targetRequest.venue_id,
-      date: targetRequest.preferred_date,
-      hour_slot: targetRequest.hour_slot,
-      status: 'paid',
-      booking_type: 'match',
-      match_request_id: targetRequest.id,
-      paid_at: new Date(),
-    });
-    await this.bookingRepo.save([booking1, booking2]);
-
-    targetRequest.status = 'matched';
-    targetRequest.matched_user_id = userId;
-    targetRequest.matched_booking_id = booking1.id;
-    await this.matchRequestRepo.save(targetRequest);
-
-    return {
-      match_request: targetRequest,
-      bookings: [booking1, booking2],
-    };
   }
 
   async findMyRequests(userId: number) {

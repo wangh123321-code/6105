@@ -53,7 +53,7 @@ CREATE TABLE bookings (
   cancelled_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE INDEX uk_booking_slot (table_id, date, hour_slot, status),
+  INDEX idx_bookings_slot (table_id, date, hour_slot, status),
   INDEX idx_bookings_user_date (user_id, date, hour_slot, status),
   INDEX idx_bookings_venue_date (venue_id, date, status),
   INDEX idx_bookings_expiration (status, created_at),

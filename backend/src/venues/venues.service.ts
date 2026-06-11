@@ -20,6 +20,14 @@ export class VenuesService {
     return this.venueRepo.find();
   }
 
+  async findOne(venueId: number) {
+    const venue = await this.venueRepo.findOne({ where: { id: venueId } });
+    if (!venue) {
+      throw new NotFoundException('球馆不存在');
+    }
+    return venue;
+  }
+
   async findTables(venueId: number) {
     const venue = await this.venueRepo.findOne({ where: { id: venueId } });
     if (!venue) {

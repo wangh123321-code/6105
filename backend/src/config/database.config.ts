@@ -9,4 +9,6 @@ export const databaseConfig: TypeOrmModuleOptions = {
   database: process.env.DB_NAME || 'penguin_booking',
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   synchronize: false,
+  charset: 'utf8mb4',
+  timezone: '+08:00',
 };

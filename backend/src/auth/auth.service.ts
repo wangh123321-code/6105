@@ -16,9 +16,13 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    const existing = await this.userRepo.findOne({ where: { username: dto.username } });
-    if (existing) {
+    const existingUsername = await this.userRepo.findOne({ where: { username: dto.username } });
+    if (existingUsername) {
       throw new ConflictException('用户名已存在');
+    }
+    const existingPhone = await this.userRepo.findOne({ where: { phone: dto.phone } });
+    if (existingPhone) {
+      throw new ConflictException('手机号已被注册');
     }
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     const user = this.userRepo.create({
