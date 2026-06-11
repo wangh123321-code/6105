@@ -40,38 +40,48 @@ export class MatchService {
     return matchRequest;
   }
 
+  private formatDate(date: any): string {
+    if (date instanceof Date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    return String(date);
+  }
+
   async findRecommendations(userId: number, matchRequestId: number) {
     const myRequest = await this.matchRequestRepo.findOne({ where: { id: matchRequestId } });
     if (!myRequest) {
       throw new NotFoundException('找球友请求不存在');
     }
 
-    const candidates = await this.matchRequestRepo.find({
-      where: {
-        status: 'open',
-        venue_id: myRequest.venue_id,
-        preferred_date: myRequest.preferred_date,
-        hour_slot: myRequest.hour_slot,
-      },
-    });
+    const dateStr = this.formatDate(myRequest.preferred_date);
 
-    const filtered = candidates.filter((c) => c.user_id !== userId);
+    const candidates = await this.matchRequestRepo
+      .createQueryBuilder('mr')
+      .where('mr.status = :status', { status: 'open' })
+      .andWhere('mr.venue_id = :venueId', { venueId: myRequest.venue_id })
+      .andWhere('DATE(mr.preferred_date) = :date', { date: dateStr })
+      .andWhere('mr.hour_slot = :hourSlot', { hourSlot: myRequest.hour_slot })
+      .andWhere('mr.user_id != :userId', { userId })
+      .getMany();
 
     const myLevel = SKILL_LEVEL_ORDER[myRequest.skill_level];
 
-    filtered.sort((a, b) => {
+    candidates.sort((a, b) => {
       const diffA = Math.abs(SKILL_LEVEL_ORDER[a.skill_level] - myLevel);
       const diffB = Math.abs(SKILL_LEVEL_ORDER[b.skill_level] - myLevel);
       return diffA - diffB;
     });
 
-    const userIds = filtered.map((c) => c.user_id);
+    const userIds = candidates.map((c) => c.user_id);
     if (userIds.length === 0) return [];
 
     const users = await this.userRepo.findBy({ id: In(userIds) });
     const userMap = new Map(users.map((u) => [u.id, u]));
 
-    return filtered.map((c) => ({
+    return candidates.map((c) => ({
       match_request_id: c.id,
       user_id: c.user_id,
       nickname: userMap.get(c.user_id)?.nickname || '',
@@ -96,6 +106,8 @@ export class MatchService {
         throw new BadRequestException('不能匹配自己的请求');
       }
 
+      const dateStr = this.formatDate(targetRequest.preferred_date);
+
       const tables = await queryRunner.manager.find(Table, {
         where: { venue_id: targetRequest.venue_id },
       });
@@ -104,23 +116,15 @@ export class MatchService {
       }
 
       const tableIds = tables.map((t) => t.id);
-      const occupiedBookings = await queryRunner.manager.find(Booking, {
-        where: {
-          date: targetRequest.preferred_date,
-          hour_slot: targetRequest.hour_slot,
-          status: 'paid',
-        },
-      });
-      const pendingBookings = await queryRunner.manager.find(Booking, {
-        where: {
-          date: targetRequest.preferred_date,
-          hour_slot: targetRequest.hour_slot,
-          status: 'pending_payment',
-        },
-      });
-      const allOccupied = [...occupiedBookings, ...pendingBookings].filter((b) =>
-        tableIds.includes(b.table_id),
-      );
+
+      const allOccupied = await queryRunner.manager
+        .createQueryBuilder(Booking, 'b')
+        .where('b.table_id IN (:...tableIds)', { tableIds })
+        .andWhere('DATE(b.date) = :date', { date: dateStr })
+        .andWhere('b.hour_slot = :hourSlot', { hourSlot: targetRequest.hour_slot })
+        .andWhere('b.status IN (:...statuses)', { statuses: ['paid', 'pending_payment'] })
+        .getMany();
+
       const occupiedTableIds = new Set(allOccupied.map((b) => b.table_id));
       const availableTable = tables.find((t) => !occupiedTableIds.has(t.id));
 
@@ -132,7 +136,7 @@ export class MatchService {
         user_id: targetRequest.user_id,
         table_id: availableTable.id,
         venue_id: targetRequest.venue_id,
-        date: targetRequest.preferred_date,
+        date: dateStr,
         hour_slot: targetRequest.hour_slot,
         status: 'paid',
         booking_type: 'match',
@@ -143,7 +147,7 @@ export class MatchService {
         user_id: userId,
         table_id: availableTable.id,
         venue_id: targetRequest.venue_id,
-        date: targetRequest.preferred_date,
+        date: dateStr,
         hour_slot: targetRequest.hour_slot,
         status: 'paid',
         booking_type: 'match',
@@ -156,6 +160,22 @@ export class MatchService {
       targetRequest.matched_user_id = userId;
       targetRequest.matched_booking_id = savedBookings[0].id;
       await queryRunner.manager.save(targetRequest);
+
+      const myRequest = await queryRunner.manager
+        .createQueryBuilder(MatchRequest, 'mr')
+        .where('mr.user_id = :userId', { userId })
+        .andWhere('mr.status = :status', { status: 'open' })
+        .andWhere('mr.venue_id = :venueId', { venueId: targetRequest.venue_id })
+        .andWhere('DATE(mr.preferred_date) = :date', { date: dateStr })
+        .andWhere('mr.hour_slot = :hourSlot', { hourSlot: targetRequest.hour_slot })
+        .getOne();
+
+      if (myRequest) {
+        myRequest.status = 'matched';
+        myRequest.matched_user_id = targetRequest.user_id;
+        myRequest.matched_booking_id = savedBookings[1].id;
+        await queryRunner.manager.save(myRequest);
+      }
 
       await queryRunner.commitTransaction();
 

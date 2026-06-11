@@ -19,6 +19,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
     }
 
+    response.setHeader('Content-Type', 'application/json; charset=utf-8');
     response.status(status).json({
       code: status,
       message,

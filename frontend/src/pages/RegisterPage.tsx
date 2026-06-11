@@ -21,7 +21,7 @@ export default function RegisterPage() {
       await register({ username, password, phone, nickname, skill_level: skillLevel })
       navigate('/login')
     } catch (err: any) {
-      setError(err.response?.data?.message || '注册失败')
+      setError(err.message || err.response?.data?.message || '注册失败')
     } finally {
       setLoading(false)
     }

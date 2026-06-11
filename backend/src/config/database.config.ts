@@ -11,4 +11,7 @@ export const databaseConfig: TypeOrmModuleOptions = {
   synchronize: false,
   charset: 'utf8mb4',
   timezone: '+08:00',
+  extra: {
+    charset: 'utf8mb4_general_ci',
+  },
 };

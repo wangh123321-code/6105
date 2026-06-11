@@ -58,7 +58,7 @@ export class VenuesService {
     const bookings = await this.bookingRepo
       .createQueryBuilder('b')
       .where('b.table_id IN (:...tableIds)', { tableIds })
-      .andWhere('b.date = :date', { date })
+      .andWhere('DATE(b.date) = :date', { date })
       .andWhere('b.status IN (:...statuses)', { statuses: ['pending_payment', 'paid'] })
       .getMany();
 

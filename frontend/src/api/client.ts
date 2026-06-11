@@ -29,6 +29,9 @@ client.interceptors.response.use(
       localStorage.removeItem('token')
       window.location.href = '/login'
     }
+    if (error.response?.data?.message && typeof error.response.data.message === 'string') {
+      error.message = error.response.data.message
+    }
     return Promise.reject(error)
   },
 )

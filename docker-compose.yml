@@ -5,16 +5,21 @@ services:
     image: mysql:8.0
     ports:
       - "3306:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
     environment:
       MYSQL_ROOT_PASSWORD: rootpass
       MYSQL_DATABASE: penguin_booking
       MYSQL_USER: app
       MYSQL_PASSWORD: apppass
+      LANG: C.UTF-8
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/001-init.sql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "--default-character-set=utf8mb4"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -1,6 +1,12 @@
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
+
 DROP DATABASE IF EXISTS penguin_booking;
 CREATE DATABASE penguin_booking CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE penguin_booking;
+
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
 
 CREATE TABLE users (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -16,7 +22,7 @@ CREATE TABLE users (
   UNIQUE INDEX uk_users_username (username),
   UNIQUE INDEX uk_users_phone (phone),
   INDEX idx_users_credit (credit_score, banned_until)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE venues (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -27,7 +33,7 @@ CREATE TABLE venues (
   close_time TIME NOT NULL DEFAULT '22:00:00',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE tables (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -37,7 +43,7 @@ CREATE TABLE tables (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_tables_venue (venue_id),
   CONSTRAINT fk_tables_venue FOREIGN KEY (venue_id) REFERENCES venues(id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE bookings (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -60,7 +66,7 @@ CREATE TABLE bookings (
   CONSTRAINT fk_bookings_user FOREIGN KEY (user_id) REFERENCES users(id),
   CONSTRAINT fk_bookings_table FOREIGN KEY (table_id) REFERENCES tables(id),
   CONSTRAINT fk_bookings_venue FOREIGN KEY (venue_id) REFERENCES venues(id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE match_requests (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -80,7 +86,7 @@ CREATE TABLE match_requests (
   CONSTRAINT fk_match_venue FOREIGN KEY (venue_id) REFERENCES venues(id),
   CONSTRAINT fk_match_matched_user FOREIGN KEY (matched_user_id) REFERENCES users(id),
   CONSTRAINT fk_match_booking FOREIGN KEY (matched_booking_id) REFERENCES bookings(id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE credit_logs (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -93,7 +99,7 @@ CREATE TABLE credit_logs (
   INDEX idx_credit_user (user_id, created_at),
   CONSTRAINT fk_credit_user FOREIGN KEY (user_id) REFERENCES users(id),
   CONSTRAINT fk_credit_booking FOREIGN KEY (booking_id) REFERENCES bookings(id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO venues (name, address, phone) VALUES
 ('朝阳社区乒乓球馆', '朝阳区建国路88号', '010-65001001'),

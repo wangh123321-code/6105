@@ -17,6 +17,16 @@ export class BookingsService {
     private readonly dataSource: DataSource,
   ) {}
 
+  private formatDate(date: any): string {
+    if (date instanceof Date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    return String(date);
+  }
+
   async create(userId: number, dto: CreateBookingDto) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) {
@@ -29,14 +39,16 @@ export class BookingsService {
       throw new BadRequestException('账号已被封禁，无法预约');
     }
 
-    const existingBooking = await this.bookingRepo.findOne({
-      where: {
-        user_id: userId,
-        date: dto.date,
-        hour_slot: dto.hour_slot,
-        status: 'paid',
-      },
-    });
+    const dateStr = this.formatDate(dto.date);
+
+    const existingBooking = await this.bookingRepo
+      .createQueryBuilder('b')
+      .where('b.user_id = :userId', { userId })
+      .andWhere('DATE(b.date) = :date', { date: dateStr })
+      .andWhere('b.hour_slot = :hourSlot', { hourSlot: dto.hour_slot })
+      .andWhere('b.status = :status', { status: 'paid' })
+      .getOne();
+
     if (existingBooking) {
       throw new ConflictException('同一日期同一时段已有其他预约');
     }
@@ -46,26 +58,26 @@ export class BookingsService {
     await queryRunner.startTransaction();
 
     try {
-      const existingSlot = await queryRunner.manager.findOne(Booking, {
-        where: {
-          table_id: dto.table_id,
-          date: dto.date,
-          hour_slot: dto.hour_slot,
-          status: 'paid',
-        },
-      });
+      const existingSlot = await queryRunner.manager
+        .createQueryBuilder(Booking, 'b')
+        .where('b.table_id = :tableId', { tableId: dto.table_id })
+        .andWhere('DATE(b.date) = :date', { date: dateStr })
+        .andWhere('b.hour_slot = :hourSlot', { hourSlot: dto.hour_slot })
+        .andWhere('b.status = :status', { status: 'paid' })
+        .getOne();
+
       if (existingSlot) {
         throw new ConflictException('该球台时段已被占用');
       }
 
-      const pendingSlot = await queryRunner.manager.findOne(Booking, {
-        where: {
-          table_id: dto.table_id,
-          date: dto.date,
-          hour_slot: dto.hour_slot,
-          status: 'pending_payment',
-        },
-      });
+      const pendingSlot = await queryRunner.manager
+        .createQueryBuilder(Booking, 'b')
+        .where('b.table_id = :tableId', { tableId: dto.table_id })
+        .andWhere('DATE(b.date) = :date', { date: dateStr })
+        .andWhere('b.hour_slot = :hourSlot', { hourSlot: dto.hour_slot })
+        .andWhere('b.status = :status', { status: 'pending_payment' })
+        .getOne();
+
       if (pendingSlot) {
         throw new ConflictException('该球台时段正在被其他用户预约中');
       }
@@ -74,7 +86,7 @@ export class BookingsService {
         user_id: userId,
         table_id: dto.table_id,
         venue_id: dto.venue_id,
-        date: dto.date,
+        date: dateStr,
         hour_slot: dto.hour_slot,
         status: 'pending_payment',
         booking_type: 'solo',
@@ -99,14 +111,16 @@ export class BookingsService {
       throw new BadRequestException('预约状态不允许支付');
     }
 
-    const conflict = await this.bookingRepo.findOne({
-      where: {
-        table_id: booking.table_id,
-        date: booking.date,
-        hour_slot: booking.hour_slot,
-        status: 'paid',
-      },
-    });
+    const dateStr = this.formatDate(booking.date);
+
+    const conflict = await this.bookingRepo
+      .createQueryBuilder('b')
+      .where('b.table_id = :tableId', { tableId: booking.table_id })
+      .andWhere('DATE(b.date) = :date', { date: dateStr })
+      .andWhere('b.hour_slot = :hourSlot', { hourSlot: booking.hour_slot })
+      .andWhere('b.status = :status', { status: 'paid' })
+      .getOne();
+
     if (conflict) {
       booking.status = 'expired';
       await this.bookingRepo.save(booking);
